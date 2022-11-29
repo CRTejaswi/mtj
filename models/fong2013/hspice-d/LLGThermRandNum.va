@@ -1,0 +1,23 @@
+// Creator: Xuanyao Fong
+// Email: xfong@purdue.edu
+// Contributors: Xuanyao Fong
+// This block generates random numbers for use with the LLG thermal
+// fluctuation calculations
+
+`include "disciplines.vams"
+`include "constants.vams"
+
+module ThermRandNumBlk(t1);
+output t1;
+electrical t1; //External Terminals of the resistor
+
+integer seedVal;
+
+analog begin : res_module
+
+	V(t1) <+ $rdist_normal(seedVal, 0.0, 1.0);
+
+end
+
+endmodule
+

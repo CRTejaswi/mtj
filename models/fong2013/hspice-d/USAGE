@@ -1,0 +1,82 @@
+To use the NRL SPICE MTJ libraries, please extract the
+NRL_SPICE_MTJ_LIB_stable*.tgz file. Include the
+NRL_MTJ_SPICE_ENC_LIB.inc from the set of extracted
+files at the beginning of your SPICE deck.
+
+** All units are in S.I. unless stated otherwise. **
+
+**** Available MTJ models:
+1) PMAMTJ
+2) IMAMTJ
+
+**** Example line to instantiate the model in your netlist:
+
+X* node1 node2 node3 node4 node5 *MTJ
++ W='width' L='length' Tm='t_FL' TMgO='TMgO'
++ alpha='damping' Ms='Msat' Ku2='Ku2'
++ th_hard='th_hard' phi_hard='phi_hard'
++ LLG_Temp='Temperature' mu_r_therm='mu_r_therm'
++ thermScale='therm_scale'
+
+- node1 is the node name for the free layer of the MTJ
+
+- node2 is the node name for the hard layer of the MTJ
+
+- Voltages of node3, node4, and node5 represent the
+  x, y, and z-components of the applied magnetic field
+  on the free layer (in CGS units), respectively.
+
+
+**** Model parameters:
+- Parameters inherited from OOMMF: P_L, P_R, Lambda_L,
+  Lambda_R, eps_prime. Please refer to OOMMF user
+  manual regarding these parameters
+
+- W: width of MTJ (in m)
+
+- L: length of MTJ (in m)
+
+- Tm: thickness of free layer (in m)
+
+- TMgO: thickness of tunneling oxide layer (in nm)
+
+- alpha: Damping constant in Landau-Lifshitz-Gilbert
+  equation (LLG)
+
+- Ms: saturation magnetization of free layer (in emu/cm^3)
+
+- Ku2: uniaxial anisotropy constant (in erg/cm^3)
+
+- th_hard, phi_hard: vector direction of hard layer
+  defined in spherical coordinates (in radians)
+
+- LLG_Temp: Absolute temperature of free layer for
+  stochastic LLG (sLLG) simulations (in Kelvin)
+
+- mu_r_therm: scaling factor for controlling thermal
+  fluctuations in sLLG simulations. The variance of
+  the thermal fluctuation term scales as
+  1.0 / mu_r_therm (unitless)
+
+- thermScale: scaling term to multiply to thermal
+  fluctuation. Set to '0.0' for zero temperature (unitless)
+
+**** Additional notes:
+
+- Internal nodes for debugging:
+  1) MTJ_curr: the voltage corresponds to the current (in Amperes)
+     flowing from free to pinned layer of MTJ
+  2) th, phi: the magnetization direction of the MTJ
+     free layer in spherical coordinates (in radians).
+  3) MX, MY, MZ: the magnetization direction of the
+     MTJ free layer in Cartesian coordinates.
+
+- Initialization:
+  1) To set the initial magnetization direction of the
+     MTJ free layer, use the lines:
+     .ic V(X*.XLLG_Eq.thInt)='theta_init'
+     .ic V(X*.XLLG_Eq.phiInt)='phi_init'
+     where X* is the instance name of the MTJ in your
+     netlist, and theta_init and phi_init are the
+     spherical coordinates of the initial
+     magnetization of the free layer (in radians)

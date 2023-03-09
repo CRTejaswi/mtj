@@ -1,0 +1,30 @@
+ ****** HSPICE -- P-2019.06-SP1-1 win64 (Sep 27 2019) ******                    
+  Copyright (c) 1986 - 2022 by Synopsys, Inc. All Rights Reserved.              
+  This software and the associated documentation are proprietary
+  to Synopsys, Inc. This software may only be used in accordance
+  with the terms and conditions of a written license agreement with
+  Synopsys, Inc. All other use, reproduction, or distribution of
+  this software is strictly prohibited.
+  Input File: .\MTJ_write.sp                                                    
+  Command line options: C:\synopsys\Hspice_P-2019.06-SP1-1\WIN64\hspice.com -i .\MTJ_write.sp -o trans2
+  Start time: Tue Dec  6 15:37:43 2022
+  lic:  
+  lic: FLEXlm: SDK_12.3 
+  lic: USER:   me                   HOSTNAME: feynman 
+  lic: HOSTID: "00155d7a01a1"       PID:      8324 
+  lic: Checkout request rejected by vendor-defined checkout filter. Feature:    
+   
+  lic: Using FLEXlm license files: 
+  lic: 27000@feynman 
+  lic: Unable to checkout (hspice) 
+  lic:   
+  lic: Checkout request rejected by vendor-defined checkout filter. Feature:    
+   
+  lic: Using FLEXlm license files: 
+  lic: 27000@feynman 
+  lic: Unable to checkout (hspicewin) 
+  lic:   
+           job total runtime         0.00 seconds
+
+
+ lic: total license checkout elapse time:        0.07(s)

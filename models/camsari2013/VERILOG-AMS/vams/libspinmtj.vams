@@ -1,0 +1,101 @@
+/*********** libSpin: Library for Spintronics***************
+ Library module of Magnetic Tunnel Junction transport element
+
+ Version 1.0.0alpha
+ 
+ Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+ 
+ The terms under which the software and associated documentation (the Software) is provided are as the following:
+ 
+ The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+ 
+ Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+ 
+ 1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+ 
+ 2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+ 
+ 3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+ 
+ 4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+ 
+ Agreed to by 
+ Samiran Ganguly
+ Kerem Y. Camsari
+ September 2014
+*************************************************************/
+/************************************************************
+ 
+ Circuit model
+ 
+ -----------------Gcc----------------------------
+    |                                   |
+    |                                   |
+   gsh                                 gsh
+    |                                   |
+    gnd                                 gnd
+    
+Gcc =  g0*(1+P1P2m1.m2)
+Is1 = ag0p2V2m2 - bg0(p1V1+p2V2)m1xm2
+Is2 = ag0p1V1m1 + bg0(p1V1+p2V2)m1xm2
+
+Spin Torque = Is + gsh*V (for 1 and 2 respectively)
+*************************************************************/
+
+`ifdef LIBSPINMTJ_VAMS
+`else
+`define LIBSPINMTJ_VAMS 1
+
+module ls_mtj_transport(t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z,m1x,m1y,m1z,m2x,m2y,m2z,s1x,s1y,s1z,s2x,s2y,s2z);
+
+    inout t1c,t2c;
+    input t1x,t1y,t1z,t2x,t2y,t2z,m1x,m1y,m1z,m2x,m2y,m2z;
+    output s1x,s1y,s1z,s2x,s2y,s2z;
+    electrical t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z,m1x,m1y,m1z,m2x,m2y,m2z,s1x,s1y,s1z,s2x,s2y,s2z;
+    ground gnd;
+    
+    (*desc="MTJ unpolarized conductance", units="S"*)
+    parameter real g0 = 1e-3 from (0:inf);
+    (*desc="External spin shunt", units="S"*)
+    parameter real gsh = 1e12 from (0:inf);
+    (*desc="Polarization of Magnet 1"*)
+    parameter real p1 = 0.5 from [0:1];
+    (*desc="Polarization of Magnet 2"*)
+    parameter real p2 = 0.5 from [0:1];
+    (*desc="In-plane spin torque coeff."*)
+    parameter real a = 1 from [0:inf);
+    (*desc="Out-of-plane spin torque coeff."*)
+    parameter real b = 0 from [0:inf);
+
+    real Mdotm, Mcmx, Mcmy,Mcmz;
+
+    analog begin
+        //calculate M.m
+        Mdotm = V(m1x)*V(m2x) + V(m1y)*V(m2y) + V(m1z)*V(m2z);
+        //Calculate Mxm
+        Mcmx = V(m1y)*V(m2z) - V(m2y)*V(m1z);
+        Mcmy = -V(m1x)*V(m2z) + V(m2x)*V(m1z);
+        Mcmz = V(m1x)*V(m2y) - V(m2x)*V(m1y);
+        //The Rp RAP part
+        I(t2c,t1c) <+ V(t2c,t1c)*(1+p1*p2*Mdotm)*g0;
+        //Spin Shunt for magnet 1 - external spin current + generated spin current from magnet 2
+        I(t1x,gnd) <+ V(t1x,gnd)*gsh;
+        I(t1y,gnd) <+ V(t1y,gnd)*gsh;
+        I(t1z,gnd) <+ V(t1z,gnd)*gsh;
+        //Spin Shunt for magnet 2 - external spin current + generated spin current from magnet 1
+        I(t2x,gnd) <+ V(t2x,gnd)*gsh;
+        I(t2y,gnd) <+ V(t2y,gnd)*gsh;
+        I(t2z,gnd) <+ V(t2z,gnd)*gsh;
+        //Output Spin Current in magnet 1 for LLG
+        V(s1x) <+ I(t1x,gnd) + g0*a*p2*V(t2c,gnd)*V(m2x) - g0*b*(p1*V(t1c,gnd)+p2*V(t2c,gnd))*Mcmx;
+        V(s1y) <+ I(t1y,gnd) + g0*a*p2*V(t2c,gnd)*V(m2y) - g0*b*(p1*V(t1c,gnd)+p2*V(t2c,gnd))*Mcmy;
+        V(s1z) <+ I(t1z,gnd) + g0*a*p2*V(t2c,gnd)*V(m2z) - g0*b*(p1*V(t1c,gnd)+p2*V(t2c,gnd))*Mcmz;
+        //Output Spin Current in magnet 2 for LLG
+        V(s2x) <+ I(t2x,gnd) + g0*a*p1*V(t1c,gnd)*V(m1x) + g0*b*(p1*V(t1c,gnd)+p2*V(t2c,gnd))*Mcmx;
+        V(s2y) <+ I(t2y,gnd) + g0*a*p1*V(t1c,gnd)*V(m1y) + g0*b*(p1*V(t1c,gnd)+p2*V(t2c,gnd))*Mcmy;
+        V(s2z) <+ I(t2z,gnd) + g0*a*p1*V(t1c,gnd)*V(m1z) + g0*b*(p1*V(t1c,gnd)+p2*V(t2c,gnd))*Mcmz;
+    end
+
+endmodule
+
+`endif

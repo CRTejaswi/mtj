@@ -1,0 +1,41 @@
+# OOMMF OVF 2.0
+#
+# Segment count: 1
+#
+# Begin: Segment
+# Begin: Header
+#
+# Title: Oxs_TimeDriver::Magnetization
+# Desc: Oxs vector field output
+# Desc:  MIF source file: /io/zeeman.mif
+# Desc:  Iteration: 415, State id: 1893
+# Desc:  Stage: 205, Stage iteration: 1
+# Desc:  Stage simulation time: 2.8e-13 s
+# Desc:  Total simulation time: 5.768e-11 s
+# meshunit: m
+# meshtype: rectangular
+# xbase: -1.3499999999999998e-08
+# ybase: 5.0000000000000003e-10
+# zbase: 5.0000000000000003e-10
+# xnodes: 10
+# ynodes: 1
+# znodes: 1
+# xstepsize: 2.9999999999999996e-09
+# ystepsize: 1.0000000000000001e-09
+# zstepsize: 1.0000000000000001e-09
+# xmin: -1.4999999999999999e-08
+# ymin: 0
+# zmin: 0
+# xmax: 1.4999999999999999e-08
+# ymax: 1.0000000000000001e-09
+# zmax: 1.0000000000000001e-09
+# valuedim: 3
+# valuelabels: Magnetization_x Magnetization_y Magnetization_z
+# valueunits: A/m A/m A/m
+#
+# End: Header
+#
+# Begin: Data Binary 8
+@Şwƒ!ÜB²¦j¤6Ğ@<2Vä×Ï@R€Üwb‚.AÉ¤~ó¸¸À.ïìry³@öWA„.A>ò³|Ûµ@_ÿû/[Ò·ÀáïW´=„.A„7ÆŞüùè@3~€‚ıâ@`3vZt.A°;ãø€›ÀJ|2I¥À„y3˜u„.Açı<{À@Å İ2Qğ½@üi~	şƒ.AJƒÂo­ÄÆÀ€ ÒâıëçÀ/WI–z.AP9•'V>ÑÀàG±6”ÀüyFƒ.Aåßş)ªÀãÏEÅ[Å@»“1ıƒ.AôãÄ@wœÁ]ºèåÀôÑà´7|.A
+# End: Data Binary 8
+# End: Segment

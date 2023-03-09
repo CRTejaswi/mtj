@@ -1,0 +1,109 @@
+/*********** libSpin: Library for Spintronics **************
+ Library module of Non-Magnetic channel element     
+ 
+ Version 1.0.0alpha
+
+ Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+ 
+ The terms under which the software and associated documentation (the Software) is provided are as the following:
+ 
+ The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+ 
+ Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+ 
+ 1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+ 
+ 2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+ 
+ 3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+ 
+ 4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+ 
+ Agreed to by 
+ Samiran Ganguly
+ Kerem Y. Camsari
+ September 2014
+ *************************************************************/
+/************************************************************
+ 
+ Pi Network model for NM                                         
+ 
+ ---------- Gse ---------------
+    |                   |
+    |                   |
+    Gsh                 Gsh
+    |                   |
+    gnd                 gnd
+    
+ The Gse and Gsh represent the conductance matrices detailed in Srinivasan et al, Handbook of Spintronics, 2013
+ Further references: Behin-Aein et al., "Switching Energy of All Spin Logic Device", APL 2012. Camsari et al., "Modular Approach to Spintronics", In prep. 
+ 
+ Gse = [gcse 0 0 0;0 gsse 0 0;0 0 gsse 0; 0 0 0 gsse] in MATLAB syntax.
+ Gsh = [0 0 0 0;0 gssh 0 0; 0 0 gssh 0;0 0 0 gssh]
+ 
+ 
+ Verilog-A doesn't support any matrix or vector operation natively, so we have to calculate each term by hand. I used symbolic toolbox of MATLAB to carry out the symbolic algebra and wrote out each element. Once all the 32 elements are known for both the matrices, the circuit can be setup by I=gV type statements. (48 in total).
+  
+ ***************************************************************/
+`ifdef LIBSPINNM_VAMS
+`else
+`define LIBSPINNM_VAMS 1
+
+module ls_non_magnet(t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z);
+
+    inout t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z;
+    ground gnd;
+    electrical t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z,gnd;
+    electrical pc, px, py, pz;
+
+    (*desc="Area", units="m^2"*)
+    parameter real Area = 1e-18 from [1e-18:inf);
+    (*desc="Length" units="m"*)
+    parameter real Length = 1e-9 from [1e-9:inf);
+    (*desc="Resistivity" units="Ohm-m"*)
+    parameter real rho = 1 from [1e-15:inf);
+    (*desc="Spin-flip length", units="m"*)
+    parameter real lsf = 1e-9 from [1e-15:inf);
+
+    real gcse, gsse, gssh;
+    real Isec, Isex, Isey, Isez, Ish1x, Ish1y, Ish1z, Ish2x, Ish2y, Ish2z;
+    analog begin
+        // conductances
+        gcse = Area/(rho*Length);
+        gsse = gcse*(Length/lsf)/sinh(Length/lsf);
+        gssh = gcse*(Length/lsf)*tanh(Length/(2*lsf));
+        // currents in the series branches
+        Isec = V(t2c,t1c)*gcse;
+        Isex = V(t2x,t1x)*gsse;
+        Isey = V(t2y,t1y)*gsse;
+        Isez = V(t2z,t1z)*gsse;
+        // put in the currents... 
+        I(t2c,t1c) <+ Isec;
+        I(t2x,t1c) <+ Isex;
+        I(t2y,t1y) <+ Isey;
+        I(t2z,t1z) <+ Isez;
+        //  currents in the "T1" side shunt
+        Ish1x = V(t1x)*gssh;
+        Ish1y = V(t1y)*gssh;
+        Ish1z = V(t1z)*gssh;
+        // put in the currents..  	 
+        I(t1x,gnd) <+ Ish1x;
+        I(t1y,gnd) <+ Ish1y;
+        I(t1z,gnd) <+ Ish1z;
+        // currents in the "T2" side shunt  
+        Ish2x = V(t2x)*gssh;
+        Ish2y = V(t2y)*gssh;
+        Ish2z = V(t2z)*gssh;
+        // put in the currents...  
+        I(t2x,gnd) <+ Ish2x;
+        I(t2y,gnd) <+ Ish2y;
+        I(t2z,gnd) <+ Ish2z;
+        // calculate power for each component and "store" in the internal node for info and probing  
+        V(pc) <+ Isec*V(t2c,t1c);
+        V(px) <+ Isex*V(t2x,t1x) + Ish1x*V(t1x) + Ish2x*V(t2x);
+        V(py) <+ Isey*V(t2y,t1y) + Ish1y*V(t1y) + Ish2y*V(t2y);
+        V(pz) <+ Isez*V(t2z,t1z) + Ish1z*V(t1z) + Ish2z*V(t2z);  
+    end
+
+endmodule
+

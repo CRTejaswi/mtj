@@ -1,0 +1,47 @@
+* Characteristics of Spin-Modules
+
+* Modules
+
+.subckt NM c1 c2 z1 z2 x1 x2 y1 y2 A=1e-18 L=1e-9 rho=1 lsf=1e-9
+.param gcse='A/(rho*L)'
+.param gsse='gcse*(L/lsf)/sinh(L/lsf)'
+.param gssh='gcse*(L/lsf)*tanh(L/(2*lsf))'
+* Gseries for n1
+Rc12 c1 c2 r='1/gcse'
+Rx12 x1 x2 r='1/gsse'
+Ry12 y1 y2 r='1/gsse'
+Rz12 z1 z2 r='1/gsse'
+* Gshunt for n1
+Rx10 x1 0 r='1/gssh'
+Ry10 y1 0 r='1/gssh'
+Rz10 z1 0 r='1/gssh'
+* Gshunt for n2
+Rx20 x2 0 r='1/gssh'
+Ry20 y2 0 r='1/gssh'
+Rz20 z2 0 r='1/gssh'
+.ends
+
+* Netlist
+*Is c1 0 dc 1
+*Is c1 0 sin(0.75 50m 10k)
+*Is c1 0 0.6 ac 1
+xFM c1 c2 z1 z2 x1 x2 y1 y2 0 FM
+
+.control
+set filetype=ascii
+set appendwrite
+set hcopydevtype=postscript
+set hcopypscolor=1
+
+* Analysis
+op
+*dc Is 0 10 0.1 
+*tran 1u 0.5m 
+*ac dec 100 1 100G
+
+*hardcopy run.ps v(c2) v(x2) v(y2) v(z2)
+quit
+.endc 
+
+.end
+

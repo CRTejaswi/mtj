@@ -1,0 +1,209 @@
+/*********** libSpin: Library for Spintronics***************
+Library module for ferromagnet 
+
+Version 1.0.0alpha
+
+Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+
+The terms under which the software and associated documentation (the Software) is provided are as the following:
+
+The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+
+Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+
+1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+
+2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+
+3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+
+4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+
+Agreed to by 
+Samiran Ganguly
+Kerem Y. Camsari
+September 2014
+ 
+*************************************************************/
+
+/************************************************************
+ 
+ Pi Network model for FM
+ 
+ ---------- Gse ---------------
+    |                   |
+    |                   |
+    Gsh                 Gsh
+    |                   |
+    gnd                 gnd
+    
+The Gse and Gsh represent the conductance matrices detailed in Srinivasan et al, Handbook of Spintronics, 2013
+Further references: Behin-Aein et al., "Switching Energy of All Spin Logic Device", APL 2012. Camsari et al., "Modular Approach to Spintronics", In prep. 
+
+Gse = [gcse p*gcse 0 0;p*gcse gsse 0 0;0 0 0 0; 0 0 0 0] in MATLAB syntax.
+Gsh = [0 0 0 0;0 0 0 0; 0 0 gsf 0;0 0 0 gsf]
+
+This also need to be basis transformed as the magnet rotates. These matrices are written in [c z x y] basis and the magnet is principle/transverse axis is assumed to be z. We use the Rodrigue's rotation method to create those transformation matrices. That makes the matrices full or "dense"
+
+Verilog-A doesn't support any matrix or vector operation natively, so we have to calculate each term by hand. I used symbolic toolbox of MATLAB to carry out the symbolic algebra and wrote out each element. Once all the 32 elements are known for both the matrices, the circuit can be setup by I=gV type statements. (48 in total).
+
+The direction of the magnet is input using the terminal "m" and its value is read off to calculate the rotation matrix.
+
+The output node s is used to generate the total spin current flowing in the element, I = GshV1 + GshV2 + Gse(V1-V2) and is supplied to the LLG solver. Note we use a CCVS to create this.
+ 
+ ***************************************************************/
+`ifdef LIBSPINFM_VAMS
+`else
+`define LIBSPINFM_VAMS 1
+
+module ls_ferromagnet(t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z,mx,my,mz,sx,sy,sz);
+
+    inout t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z;
+    input mx,my,mz;
+    output sx, sy,sz;
+    ground gnd;
+    electrical t1c,t1x,t1y,t1z,t2c,t2x,t2y,t2z,mx,my,mz,sx,sy,sz,gnd;
+    electrical pc, px, py, pz;
+
+    (*desc="Area", units="m^2"*)
+    parameter real Area = 1e-18 from [1e-18:inf);
+    (*desc="Length", units="m"*)
+    parameter real Length = 1e-9 from [1e-15:inf);
+    (*desc="Resistivity", units="Ohm-m"*)
+    parameter real rho = 1 from [1e-15:inf);
+    (*desc="Spin-flip-length", units="m"*)
+    parameter real lsf = 1e-9 from [1e-15:inf);
+    (*desc="Polarization"*)
+    parameter real p = 0.5 from [0:1];
+    (*desc="Transverse-spin-flip-length", units="m"*)
+    parameter real lsft = 1e-10  from [1e-15:1e15];
+
+    real gcse, gsse, gssh, gsf;
+    real x,y,z,cs,si,ux,uy,rzz,rxz,ryz,rzx,rxx,ryx,rxy,rzy,ryy;
+    real gccse, gcxse, gcyse, gczse, gxcse, gycse, gzcse, gxxse, gxyse, gxzse, gyxse, gyyse, gyzse, gzxse, gzyse, gzzse;
+    real gxxsh1, gxysh1, gxzsh1, gyxsh1, gyysh1, gyzsh1, gzxsh1, gzysh1, gzzsh1;
+    real gxxsh2, gxysh2, gxzsh2, gyxsh2, gyysh2, gyzsh2, gzxsh2, gzysh2, gzzsh2;
+    real Isec, Isex, Isey, Isez, Ish1x, Ish1y, Ish1z, Ish2x, Ish2y, Ish2z;
+
+    analog begin
+        // basic conductances
+        gcse = Area/(rho*Length);
+        gsse = gcse*(Length/lsf)*(p*p +(1-p*p)*(Length/lsf)/sinh(Length/lsf));
+        gssh = gcse*(Length/lsf)*(1-p*p)*(Length/lsf)*tanh(Length/(2*lsf));
+        gsf = gcse*(Length/lsft)*(1-p*p)*(Length/lsft)*tanh(Length/(2*lsft));
+
+        //extract the magnetization for rotation
+        x = V(mx);
+        y = V(my);
+        z = V(mz);
+        // construct the rotation matrix elements - see ASL book chapter
+        cs = z;
+        si = sqrt(1-cs*cs);
+        ux = -y/(y*y+x*x+z*z);
+        uy = x/(y*y+x*x+z*z);
+        // construct the rotation matrix - see ASL book chapter
+        rzz = cs;
+        rxz = -uy*si;
+        ryz = ux*si;
+        rzx = uy*si;
+        rxx = ux*ux + (1-ux*ux)*cs;
+        ryx = ux*uy*(1-cs);
+        rxy = ux*uy*(1-cs);
+        rzy = -ux*si;
+        ryy = uy*uy + (1-uy*uy)*cs;
+
+        // for series
+        // construct conductance matrix first
+        //first row
+        gccse = gcse;
+        gcxse = gcse*p*rzx;
+        gcyse = gcse*p*rzy;
+        gczse = gcse*p*rzz;
+        //second row	
+        gxcse = gcse*p*rzx;
+        gxxse = gsse*rzx*rzx;
+        gxyse = gsse*rzx*rzy;
+        gxzse = gsse*rzx*rzz;
+        //third row
+        gycse = gcse*p*rzy;
+        gyxse = gsse*rzx*rzy;
+        gyyse = gsse*rzy*rzy;
+        gyzse = gsse*rzy*rzz;
+        // fourth row
+        gzcse = gcse*p*rzz;
+        gzxse = gsse*rzz*rzx;
+        gzyse = gsse*rzz*rzy;
+        gzzse = gsse*rzz*rzz;
+        // construct currents now
+        Isec = gccse*V(t2c,t1c) + gcxse*V(t2x,t1x) + gcyse*V(t2y,t1y) + gczse*V(t2z,t1z);
+        Isex = gxcse*V(t2c,t1c) + gxxse*V(t2x,t1x) + gxyse*V(t2y,t1y) + gxzse*V(t2z,t1z);
+        Isey = gycse*V(t2c,t1c) + gyxse*V(t2x,t1x) + gyyse*V(t2y,t1y) + gyzse*V(t2z,t1z);
+        Isez = gzcse*V(t2c,t1c) + gzxse*V(t2x,t1x) + gzyse*V(t2y,t1y) + gzzse*V(t2z,t1z);
+        // put in the currents ...
+        I(t2c,t1c) <+ Isec;
+        I(t2x,t1x) <+ Isex;
+        I(t2y,t1y) <+ Isey;
+        I(t2z,t1z) <+ Isez;
+
+        //for "T1" side shunt
+        // construct conductance matrix first
+        // first row 
+        gxxsh1 = gsf*rxx*rxx+gsf*ryx*ryx+gssh*rzx*rzx;
+        gxysh1 = gsf*rxy*rxx+gsf*ryy*ryx+gssh*rzy*rzx;
+        gxzsh1 = gsf*ryx*ryz+gsf*rxx*rxz+gssh*rzx*rzz;
+        // second row
+        gyxsh1 = gsf*rxx*rxy+gsf*ryy*ryx+gssh*rzx*rzy;
+        gyysh1 = gsf*rxy*rxy+gsf*ryy*ryy+gssh*rzy*rzy;
+        gyzsh1 = gsf*rxy*rxz+gsf*ryy*ryz+gssh*rzy*rzz;
+        // third row
+        gzxsh1 = gsf*ryx*ryz+gsf*rxx*rxz+gssh*rzx*rzz;
+        gzysh1 = gsf*rxy*rxz+gsf*ryy*ryz+gssh*rzy*rzz;
+        gzzsh1 = gsf*rxz*rxz+gsf*ryz*ryz+gssh*rzz*rzz;
+        // construct currents
+        Ish1x = gxxsh1*V(t1x) + gxysh1*V(t1y) + gxzsh1*V(t1z);
+        Ish1y = gyxsh1*V(t1x) + gyysh1*V(t1y) + gyzsh1*V(t1z);
+        Ish1z = gzxsh1*V(t1x) + gzysh1*V(t1y) + gzzsh1*V(t1z);
+        //put in the currents...
+        I(t1x,gnd) <+ Ish1x;
+        I(t1y,gnd) <+ Ish1y;
+        I(t1z,gnd) <+ Ish1z;
+
+        //for "T2" side shunt
+        //construct conductance matrix first - since symmetric just copy "T1" side for now but put proper biases
+        // first row
+        gxxsh2 = gxxsh1;
+        gxysh2 = gxysh1;
+        gxzsh2 = gxzsh1;
+        // second row
+        gyxsh2 = gyxsh1;
+        gyysh2 = gyysh1;
+        gyzsh2 = gyzsh1;
+        // third row
+        gzxsh2 = gzxsh1;
+        gzysh2 = gzysh1;
+        gzzsh2 = gzzsh1;
+        // construct currents
+        Ish2x = gxxsh2*V(t2x) + gxysh2*V(t2y) + gxzsh2*V(t2z);
+        Ish2y = gyxsh2*V(t2x) + gyysh2*V(t2y) + gyzsh2*V(t2z);
+        Ish2z = gzxsh2*V(t2x) + gzysh2*V(t2y) + gzzsh2*V(t2z);
+        //put in the currents...
+        I(t2x,gnd) <+ Ish2x;
+        I(t2y,gnd) <+ Ish2y;
+        I(t2z,gnd) <+ Ish2z;
+
+        //output spin torque currents
+        V(sx) <+ Isex + Ish1x + Ish2x;
+        V(sy) <+ Isey + Ish1y + Ish2y;
+        V(sz) <+ Isez + Ish1z + Ish2z;
+
+
+        // calculate power for each component and "store" in the internal node for info and probing  
+        V(pc) <+ abs(Isec*V(t2c,t1c));
+        V(px) <+ abs(Isex*V(t2x,t1x) + Ish1x*V(t1x) + Ish2x*V(t2x));
+        V(py) <+ abs(Isey*V(t2y,t1y) + Ish1y*V(t1y) + Ish2y*V(t2y));
+        V(pz) <+ abs(Isez*V(t2z,t1z) + Ish1z*V(t1z) + Ish2z*V(t2z));	  
+
+    end
+endmodule
+
+`endif

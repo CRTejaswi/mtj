@@ -1,0 +1,104 @@
+/*********** libSpin: Library for Spintronics***************
+This is the main library file. Each sub file contains definitions for individual elements.
+
+Version 1.0.0alpha for the library. Individual modules are versioned separately.
+
+Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+
+The terms under which the software and associated documentation (the Software) is provided are as the following:
+
+The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+
+Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+
+1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+
+2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+
+3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+
+4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+
+Agreed to by 
+Samiran Ganguly
+Kerem Y. Camsari
+September 2014
+*************************************************************/
+
+`include "disciplines.vams"
+`include "constants.vams"
+
+`ifdef LIBSPIN_VAMS
+`else
+`define LIBSPIN_VAMS 1
+`define LS_SMALLNUM 1.0e-15
+`define LS_BIGNUM 1.0e15
+`define LS_VERSION 1.0.0alpha
+
+/************ Some Basic Useful Modules **************************/
+// Voltage Source 3-component
+`ifdef LIBSPINVSRC_VAMS
+`else
+`include "./vams/libspinvsrc.vams"
+`endif
+
+// Resistor 4-component
+`ifdef LIBSPINRES_VAMS
+`else
+`include "./vams/libspinres.vams"
+`endif
+
+// Spin to ground - temporary diagnostic module - DO NOT USE FOR FINAL MODELS!!!
+`ifdef LIBSPINGND_VAMS
+`else
+`include "./vams/libspingnd.vams"
+`endif
+
+/***************** Bulk Modules ******************************/
+
+// Non-Magnet
+`ifdef LIBSPINNM_VAMS
+`else
+`include "./vams/libspinnm.vams"
+`endif
+
+//Ferromagnet
+`ifdef LIBSPINFM_VAMS
+`else
+`include "./vams/libspinfm.vams"
+`endif
+
+//GSHE
+`ifdef LIBSPINGSH_VAMS
+`else
+`include "./vams/libspingsh.vams"
+`endif
+
+/*********************** Interface Modules ********************/
+
+//FM - NM 
+`ifdef LIBSPINFMNMINTERFACE_VAMS
+`else
+`include "./vams/libspinfmnminterface.vams"
+`endif
+
+//Magnetic Tunnel Junction
+`ifdef LIBSPINMTJ_VAMS
+`else
+`include "./vams/libspinmtj.vams"
+`endif
+
+/************************ Magnetics Modules ********************/
+
+`ifdef LIBSPINLLG_VAMS
+`else
+`include "./vams/libspinllg.vams"
+`endif
+
+`ifdef LIBSPINCOUPLING_VAMS
+`else
+`include "./vams/libspincoupling.vams"
+`endif
+
+`endif
+/************************ END ***********************************/

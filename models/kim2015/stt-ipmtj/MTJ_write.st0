@@ -1,0 +1,53 @@
+****** HSPICE -- P-2019.06-SP1-1 win64 (Sep 27 2019) ******
+Input File: .\MTJ_write.sp
+lic:
+lic: FLEXlm: SDK_12.3
+lic: USER:   me                   HOSTNAME: feynman
+lic: HOSTID: "00155d9854c5"       PID:      6368
+lic: Using FLEXlm license file:
+lic: 27000@feynman
+lic: Checkout 1 hspice
+lic: License/Maintenance for hspice will expire on 30-dec-2030/2020.12
+lic: 1(in_use)/99(total) FLOATING license(s) on SERVER 27000@feynman
+lic:
+
+ init: begin read circuit files, cpu clock= 3.10E-02
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/behave/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/AD/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/XILINX/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/TLINE/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/TI/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/SIGNET/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/PCI/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/LIN_TEC
+                         H/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/PET/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/DI0/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/COMLINE
+                         /
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/BURR_BR
+                         M/
+       option search = C:/synopsys/Hspice_P-2019.06-SP1-1/parts/BJT/
+       option post
+ init: end read circuit files, cpu clock= 3.50E-02 peak memory=      62 mb
+ init: begin check errors, cpu clock= 3.50E-02
+ init: end check errors, cpu clock= 4.00E-02 peak memory=      62 mb
+ init: begin setup matrix, pivot=     0 cpu clock= 4.00E-02
+       establish matrix -- done, cpu clock= 4.10E-02 peak memory=      62 mb
+       re-order matrix -- done, cpu clock= 4.10E-02 peak memory=      62 mb
+ init: end setup matrix, cpu clock= 4.40E-02 peak memory=      62 mb
+ output: .\MTJ_write.mt0
+ sweep: tran tran0    begin, stop_t=  1.00E-08 #sweeps=**** cpu clock= 2.08E-01
+ tran: time= 1.0049E-09 tot_iter=     699 conv_iter=     203 cpu clock= 2.46E-01
+ tran: time= 2.0031E-09 tot_iter=    1617 conv_iter=     453 cpu clock= 2.99E-01
+ tran: time= 3.0047E-09 tot_iter=    2481 conv_iter=     690 cpu clock= 3.62E-01
+ tran: time= 4.0127E-09 tot_iter=    2928 conv_iter=     839 cpu clock= 3.84E-01
+ tran: time= 5.0165E-09 tot_iter=    3193 conv_iter=     922 cpu clock= 3.97E-01
+ tran: time= 6.0063E-09 tot_iter=    3378 conv_iter=     981 cpu clock= 4.06E-01
+ tran: time= 7.0266E-09 tot_iter=    3565 conv_iter=    1034 cpu clock= 4.15E-01
+ tran: time= 8.0152E-09 tot_iter=    3759 conv_iter=    1088 cpu clock= 4.27E-01
+ tran: time= 9.0021E-09 tot_iter=    3974 conv_iter=    1149 cpu clock= 4.39E-01
+ tran: time= 1.0000E-08 tot_iter=    4168 conv_iter=    1205 cpu clock= 4.49E-01
+ sweep: tran tran0    end, cpu clock= 4.49E-01 peak memory=      62 mb
+>info:         ***** hspice job concluded
+ lic: Release hspice token(s)

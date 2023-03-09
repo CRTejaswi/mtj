@@ -1,0 +1,129 @@
+/*********** libSpin: Library for Spintronics***************
+ Library module of GSH spin source element
+
+Version 1.0.0alpha 
+ 
+ Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+ 
+ The terms under which the software and associated documentation (the Software) is provided are as the following:
+ 
+ The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+ 
+ Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+ 
+ 1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+ 
+ 2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+ 
+ 3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+ 
+ 4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+ 
+ Agreed to by 
+ Samiran Ganguly
+ Kerem Y. Camsari
+ September 2014
+*************************************************************/
+/************************************************************
+
+ Network model for GSHE                         
+ 
+ Spin branch 3-4
+------------------ Gs34se -------------------------
+    |     |                   |     |
+    |     |                   |     |
+    Is   Gs34sh             Gs34sh -Is
+    |     |                   |     |
+    gnd   gnd                 gnd   gnd
+    
+Charge branch 1-2
+    
+------------ Gc21se ---------------
+    |                  |
+    |                  |
+    Ic                -Ic
+    |                  |
+    gnd                gnd
+    
+Gc21se = Winj*tinj/Linj*rho = "charge" conductance of the whole GSHE strip (calling it as "injector" here)
+Gc34se = Wdet*Ldet/tinj*rho = "charge" conductance of the GSHE strip through cross section of the "detector" over which spin current
+                                is collected
+Gs34se = Gc34se*(tinj/lsf)*cosech(tinj/lsf) = series "spin" conductance in 3-4 netwrok
+Gs34sh = Gc34se*(tinj/lsf)*tanh(tinj/2lsf) = shunt "spin" conductance in 3-4 network
+beta = theta*Wdet*Ldet/Winj*tinj = current gain 
+Is = beta*Gc21se*(V2-V1)
+Ic = beta*Gc34se*(V3-V4)
+
+For derivation see Hong et al., "Conductance matrix for Giant Spin Hall Effect", In Prep.
+ 
+ ***************************************************************/
+`ifdef LIBSPINGSH_VAMS
+`else
+`define LIBSPINGSH_VAMS 1
+
+module ls_gsh(t1c,t2c,t3x,t3y,t3z,t4x,t4y,t4z);
+
+    inout t1c,t2c,t3x,t3y,t3z,t4x,t4y,t4z;
+    ground gnd;
+    electrical t1c,t2c,t3x,t3y,t3z,t4x,t4y,t4z,gnd;
+
+    (*desc="Spin Hall angle"*)
+    parameter real theta = 0.1 from [0:1];
+    (*desc="Detector length", units="m"*)
+    parameter real Ldet = 1e-7 from [1e-9:inf);
+    (*desc="Injector length", units="m"*)
+    parameter real tinj = 1e-9 from [1e-10:inf);
+    (*desc="Injector length", units="m"*)
+    parameter real Linj = 1e-6 from [1e-9:inf);
+    (*desc="Detector width", units="m"*)
+    parameter real Wdet = 1e-7 from [1e-9:inf);
+    (*desc="Injector width", units="m"*)
+    parameter real Winj = 1e-7 from [1e-9:inf);
+    (*desc="Spin-flip length",  units="m"*)
+    parameter real lsf = 1e-9 from [1e-10:inf);
+    (*desc="Resistivity", units="Ohm-m"*)
+    parameter real rho = 1e-6 from (0:inf);
+    (*desc="Spin injection direction:x"*)
+    parameter real sx = 0 from [0:1];
+    (*desc="Spin injection direction:y"*)
+    parameter real sy = 0 from [0:1];
+    (*desc="Spin injection direction:z"*)
+    parameter real sz = 1 from [0:1];
+    
+    real beta, Gc21se, Gc34se, Gs34se, Gs34sh;
+
+    analog begin
+        //calculate G and beta
+        beta = (theta*Wdet*Ldet)/(Winj*tinj);
+        Gc21se = (tinj*Winj)/(rho*Linj);
+        Gc34se = (Wdet*Ldet)/(rho*tinj);
+        Gs34se = Gc34se*(tinj/lsf)/sinh(tinj/lsf);
+        Gs34sh = Gc34se*(tinj/lsf)*tanh(tinj/(2*lsf));
+        //charge part - series
+        I(t2c,t1c) <+ V(t2c,t1c)*Gc21se;
+        //ISHE - current src between gnd and 1 and gnd and 2 
+        I(t1c,gnd) <+ beta*(V(t3x,t4x)*sx+V(t3y,t4y)*sy+V(t3z,t4z)*sz)*Gc21se;
+        I(t2c,gnd) <+ -beta*(V(t3x,t4x)*sx+V(t3y,t4y)*sy+V(t3z,t4z)*sz)*Gc21se;
+        //Spin part - series
+        I(t4x,t3x) <+ V(t4x,t3x)*Gs34se;	
+        I(t4y,t3y) <+ V(t4y,t3y)*Gs34se;
+        I(t4z,t3z) <+ V(t4z,t3z)*Gs34se;
+        //DSHE + spin shunts between gnd and 3
+        I(t3x,gnd) <+ beta*V(t2c,t1c)*sx*Gc21se;
+        I(t3x,gnd) <+ V(t3x,gnd)*Gs34sh;    
+        I(t3y,gnd) <+ beta*V(t2c,t1c)*sy*Gc21se;
+        I(t3y,gnd) <+ V(t3y,gnd)*Gs34sh;
+        I(t3z,gnd) <+ beta*V(t2c,t1c)*sz*Gc21se;
+        I(t3z,gnd) <+ V(t3z,gnd)*Gs34sh;
+        //DSHE + spin shunt between gnd and 4
+        I(t4x,gnd) <+ -beta*V(t2c,t1c)*sx*Gc21se;
+        I(t4x,gnd) <+ V(t4x,gnd)*Gs34sh;
+        I(t4y,gnd) <+ -beta*V(t2c,t1c)*sy*Gc21se;
+        I(t4y,gnd) <+ V(t4y,gnd)*Gs34sh;
+        I(t4z,gnd) <+ -beta*V(t2c,t1c)*sz*Gc21se;
+        I(t4z,gnd) <+ V(t4z,gnd)*Gs34sh;
+    end
+
+endmodule
+
+`endif

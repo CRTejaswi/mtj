@@ -1,0 +1,65 @@
+/*********** libSpin: Library for Spintronics***************
+ Temporary Library module of Ferromagnet element
+
+ Version 1.0.0alpha
+ 
+ Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+ 
+ The terms under which the software and associated documentation (the Software) is provided are as the following:
+ 
+ The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+ 
+ Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+ 
+ 1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+ 
+ 2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+ 
+ 3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+ 
+ 4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+ 
+ Agreed to by 
+ Samiran Ganguly
+ Kerem Y. Camsari
+ September 2014
+*************************************************************/
+/************************************************************
+ A simple ground connection for spins. Use for diagnostics for a spin ground like boundary conditions
+ ----
+    |
+    |
+    gsf
+    |
+    gnd
+ 
+ gsf is the spinshunt conductance. Its a big default value so that the spin currents shunt out through a very small resistance
+************************************************************/
+
+`ifdef LIBSPINGROUND_VAMS
+`else
+`define LIBSPINGROUND_VAMS 1
+
+module ls_fmgnd(t1x, t1y, t1z, sx, sy, sz);
+
+    inout t1x, t1y, t1z;
+    output sx, sy, sz;
+    ground gnd;
+    electrical t1x, t1y, t1z, sx, sy, sz;
+
+    parameter real gsf = 1e6 from [0:inf);
+
+    analog begin
+
+        I(t1x,gnd) <+ V(t1x,gnd)*gsf;
+        I(t1y,gnd) <+ V(t1y,gnd)*gsf;
+        I(t1z,gnd) <+ V(t1z,gnd)*gsf;
+
+        V(sx) <+ I(t1x,gnd);
+        V(sy) <+ I(t1y,gnd);
+        V(sz) <+ I(t1z,gnd);
+        
+    end
+endmodule
+
+`endif

@@ -1,0 +1,346 @@
+/*********** libSpin: Library for Spintronics**********
+Library module of LLG Solver
+
+Version 1.0.0alpha
+
+Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+
+The terms under which the software and associated documentation (the Software) is provided are as the following:
+
+The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+
+Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+
+1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+
+2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+
+3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+
+4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+
+Agreed to by 
+Samiran Ganguly
+Kerem Y. Camsari
+September 2014
+**************************************************/
+/*************************************************
+ 
+ Integrator based ckt: (see manual)
+ Inputs: s for spin current
+        h for magnetic field
+ Output: m (magnetization)
+ Feedback: internal field. Basically a magnetic field of magnitude K*m where diagonals of K is given by Kx Ky Kz
+ 
+ C-I ckt:
+ 
+ ----------------------------------m
+ |      |       |       |
+ |      |       |       |
+ Istt  Ihext   Ihint    C
+ |      |       |       |
+ gnd    gnd     gnd     gnd
+ 
+ Istt = (Gsttmx+Gsttmxmx)*Vs
+ Ihext = (Gextmx+Gextmxmx)*Vh
+ Ihint = (Gintmx+Gintmxmx)*Vint
+ C = tdl
+**************************************************/ 
+
+`ifdef LIBSPINLLG_VAMS
+`else
+`define LIBSPINLLG_VAMS 1
+
+module ls_monodomain_noiseless_llg(hx,hy,hz,sx,sy,sz,mx,my,mz);
+
+    input hx,hy,hz,sx,sy,sz;
+    output mx,my,mz;
+    //electrical m1x, m1y, m1z;
+    electrical mx,my,mz,hx,hy,hz,sx,sy,sz;
+    ground gnd;
+
+    (* desc="Gilbert Damping Parameter"*)
+    parameter real alpha = 0.01;
+    (* desc="Magnet thickness", units="m"*)
+    parameter real tfm=2e-9;
+    (* desc="Area of cross section", units="m^2"*)
+    parameter real Area = 80*100*1e-18;
+    (* desc="Saturation magnetization", units="emu/cc"*)
+    parameter real Ms = 1000;
+    (* desc="Anisotropy field", units="G"*)
+    parameter real Hk = 40;
+    (* desc="Magnetic field coeff.:x"*)
+    parameter real Kx = -150;
+    (* desc="Magnetic field coeff.:y"*)
+    parameter real Ky = 0;
+    (* desc="Magnetic field coeff.:z"*)
+    parameter real Kz = 1;
+
+    real gamma, tdl, kstt, hbar, q;
+    real dummy, hintx, hinty, hintz, intmx, intmmx, intmy, intmmy, intmz, intmmz;
+    real extmx, extmmx, extmy, extmmy, extmz, extmmz, sttmx, sttmmx, sttmy, sttmmy, sttmz, sttmmz; 
+
+    //calculate for internal mx
+    analog function real g_int_mx;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz;
+        begin
+            Cx = Ay*Bz - By*Az;
+            Cy = -Ax*Bz + Az*Bx;
+            Cz = Ax*By - Ay*Bx;
+        end  
+    endfunction
+
+    //calculate for internal mxmx
+    analog function real g_int_mxmx;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,alpha; 
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,alpha;
+        begin
+            Cx = alpha*(-(Ay*Ay+Az*Az)*Bx + Ax*Ay*By + Ax*Az*Bz);
+            Cy = alpha*(Ax*Ay*Bx -(Ax*Ax+Az*Az)*By + Ay*Az*Bz);
+            Cz = alpha*(Ax*Az*Bx + Ay*Az*By - (Ax*Ax+Ay*Ay)*Bz);
+        end  
+    endfunction
+
+    //calculate for external mx
+    analog function real g_ext_mx;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,Hk;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,Hk;
+        begin
+            Cx = (Ay*Bz - By*Az)/Hk;
+            Cy = (-Ax*Bz + Az*Bx)/Hk;
+            Cz = (Ax*By - Ay*Bx)/Hk;
+        end
+    endfunction
+
+    //calculate for external mxmx
+    analog function real g_ext_mxmx;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,hk,alpha; 
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,hk,alpha;
+        begin
+            Cx = alpha*(-(Ay*Ay+Az*Az)*Bx + Ax*Ay*By + Ax*Az*Bz)/hk;
+            Cy = alpha*(Ax*Ay*Bx -(Ax*Ax+Az*Az)*By + Ay*Az*Bz)/hk;
+            Cz = alpha*(Ax*Az*Bx + Ay*Az*By - (Ax*Ax+Ay*Ay)*Bz)/hk;
+        end  
+    endfunction
+
+    //calculate for stt mx
+    analog function real g_stt_mx;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,kstt,alpha;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,kstt,alpha;
+        begin
+            Cx = alpha*(Ay*Bz - By*Az)*kstt;
+            Cy = alpha*(-Ax*Bz + Az*Bx)*kstt;
+            Cz = alpha*(Ax*By - Ay*Bx)*kstt;
+        end
+    endfunction
+
+    //calculate for stt mxmx
+    analog function real g_stt_mxmx;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,kstt; 
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,kstt;
+        begin
+            Cx = (-(Ay*Ay+Az*Az)*Bx + Ax*Ay*By + Ax*Az*Bz)*kstt;
+            Cy = (Ax*Ay*Bx -(Ax*Ax+Az*Az)*By + Ay*Az*Bz)*kstt;
+            Cz = (Ax*Az*Bx + Ay*Az*By - (Ax*Ax+Ay*Ay)*Bz)*kstt;
+        end  
+    endfunction
+
+    analog begin
+        //gyromagnetic ratio
+        gamma = 17.6e6;
+        //reduced Planc's coeff
+        hbar = `P_H/(2*`M_PI);
+        q = `P_Q;
+        //time scale coeff = basically magnitude of Capacitance
+        tdl = (1+alpha*alpha)/(gamma*Hk);
+        //Amp to Oe conversion for STT. Qeometrical dimensions are in SI, but magnetics in cgs, so the "Correction factor" is
+        // 1e-7/1e-6 = 1e-1
+        kstt = hbar/(2*q*Ms*Area*tfm*Hk*1e-1);
+        //OPAMP - Not working in HSPICE,TODO: correct in later versions. For now make it C-I type circuit.
+        //V(mx,gnd):V(inx,gnd)==0;
+        //V(my,gnd):V(iny,gnd)==0;
+        //V(mz,gnd):V(inz,gnd)==0;
+        //Capacitor  
+        I(mx,gnd) <+ tdl*ddt(V(mx,gnd));
+        I(my,gnd) <+ tdl*ddt(V(my,gnd));
+        I(mz,gnd) <+ tdl*ddt(V(mz,gnd));
+        //Internal
+        hintx = Kx*V(mx);
+        hinty = Ky*V(my);
+        hintz = Kz*V(mz);
+        dummy = g_int_mx(intmx,intmy,intmz,V(mx),V(my),V(mz),hintx,hinty,hintz);
+        dummy = g_int_mxmx(intmmx,intmmy,intmmz,V(mx),V(my),V(mz),hintx,hinty,hintz,alpha);
+        I(mx,gnd) <+ (intmx + intmmx);
+        I(my,gnd) <+ (intmy + intmmy);
+        I(mz,gnd) <+ (intmz + intmmz);
+        //External field
+        dummy = g_ext_mx(extmx,extmy,extmz,V(mx),V(my),V(mz),V(hx),V(hy),V(hz),Hk);
+        dummy = g_ext_mxmx(extmmx,extmmy,extmmz,V(mx),V(my),V(mz),V(hx),V(hy),V(hz),Hk,alpha);
+        I(mx,gnd) <+ extmx + extmmx;
+        I(my,gnd) <+ extmy + extmmy;
+        I(mz,gnd) <+ extmz + extmmz;
+        //STT
+        dummy = g_stt_mx(sttmx,sttmy,sttmz,V(mx),V(my),V(mz),V(sx),V(sy),V(sz),kstt,alpha);
+        dummy = g_stt_mxmx(sttmmx,sttmmy,sttmmz,V(mx),V(my),V(mz),V(sx),V(sy),V(sz),kstt);
+        I(mx,gnd) <+ sttmx + sttmmx;
+        I(my,gnd) <+ sttmy + sttmmy;
+        I(mz,gnd) <+ sttmz + sttmmz;
+        //Output - Testing LLG
+        //V(mx) <+ V(m1x,gnd);
+        //V(my) <+ V(m1y,gnd);
+        //V(mz) <+ V(m1z,gnd);
+        //Resistor for "stability"
+        I(mx,gnd) <+ 1.0e-12*V(mx,gnd);
+        I(my,gnd) <+ 1.0e-12*V(my,gnd);
+        I(mz,gnd) <+ 1.0e-12*V(mz,gnd);
+    end
+endmodule
+/* 
+ module ls_monodomain_llg(mx,my,mz,hx,hy,hz,sx,sy,sz);
+
+    input hx,hy,hz,sx,sy,sz;
+    output mx,my,mz;
+    electrical mx,my,mz,hx,hy,hz,sx,sy,sz,nx,ny,nz;
+    ground gnd;
+
+    (* desc="Gilbert Damping Parameter"*)
+    parameter real alpha = 0.01;
+    (* desc="Magnet thickness",units="m"*)
+    parameter real tm=1.2e-9;
+    (* desc="Area of cross section",units="m^2"*)
+    parameter real A = 100*100*1e-18;
+    (* desc="Saturation magnetization"*)
+    parameter real Ms = 1;
+    (* desc="Anisotropy field"*)
+    parameter real Hk = 0.04;
+    (* desc="Temperature", units="K"*)
+    parameter real T = 0 from [0:1e15);
+    parameter real Kx = -50;
+    parameter real Ky = 0;
+    parameter real Kz = 1;
+
+    real gamma, mu0, muB, tdl, Ns, kstt;
+    real dummy, hintx, hinty, hintz, intmx, intmmx, intmy, intmmy, intmz, intmmz;
+    real extmx, extmmx, extmy, extmmy, extmz, extmmz, sttmx, sttmmx, sttmy, sttmmy, sttmz, sttmmz, nmx, nmy, nmz; 
+
+    analog function real g_int_mx;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz;
+        begin
+            Cx = Ay*Bz - By*Az;
+            Cy = -Ax*Bz + Az*Bx;
+            Cz = Ax*By - Ay*Bx;
+        end  
+    endfunction
+
+    analog function real g_int_mxmx;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,alpha;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,alpha; 
+        begin
+            Cx = alpha*(-(Ay*Ay+Az*Az)*Bx + Ax*Ay*By + Ax*Az*Bz);
+            Cy = alpha*(Ax*Ay*Bx -(Ax*Ax+Az*Az)*By + Ay*Az*Bz);
+            Cz = alpha*(Ax*Az*Bx + Ay*Az*By - (Ax*Ax+Ay*Ay)*Bz);
+        end  
+    endfunction
+
+    analog function real g_ext_mx;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,Hk;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,Hk;
+        begin
+            Cx = (Ay*Bz - By*Az)/Hk;
+            Cy = (-Ax*Bz + Az*Bx)/Hk;
+            Cz = (Ax*By - Ay*Bx)/Hk;
+        end
+    endfunction
+
+    analog function real g_ext_mxmx;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,hk,alpha;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,hk,alpha; 
+        begin
+            Cx = alpha*(-(Ay*Ay+Az*Az)*Bx + Ax*Ay*By + Ax*Az*Bz)/hk;
+            Cy = alpha*(Ax*Ay*Bx -(Ax*Ax+Az*Az)*By + Ay*Az*Bz)/hk;
+            Cz = alpha*(Ax*Az*Bx + Ay*Az*By - (Ax*Ax+Ay*Ay)*Bz)/hk;
+        end  
+    endfunction
+
+    analog function real g_stt_mx;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,kstt,alpha;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,kstt,alpha;
+        begin
+            Cx = alpha*(Ay*Bz - By*Az)/kstt;
+            Cy = alpha*(-Ax*Bz + Az*Bx)/kstt;
+            Cz = alpha*(Ax*By - Ay*Bx)/kstt;
+        end
+    endfunction
+
+    analog function real g_stt_mxmx;
+        real Cx,Cy,Cz,Ax,Ay,Az,Bx,By,Bz,kstt;
+        output Cx,Cy,Cz;
+        input Ax,Ay,Az,Bx,By,Bz,kstt; 
+        begin
+            Cx = (-(Ay*Ay+Az*Az)*Bx + Ax*Ay*By + Ax*Az*Bz)/kstt;
+            Cy = (Ax*Ay*Bx -(Ax*Ax+Az*Az)*By + Ay*Az*Bz)/kstt;
+            Cz = (Ax*Az*Bx + Ay*Az*By - (Ax*Ax+Ay*Ay)*Bz)/kstt;
+        end  
+    endfunction
+
+    analog begin
+        gamma = 17.6e10;
+        tdl = (1+alpha*alpha)/(gamma*Hk);
+        mu0 = 4*`M_PI*1e-7;
+        muB = 9.27e-24;
+        Ns = (Ms*tm*A)/(mu0*muB);
+        kstt = Ns*`P_Q*gamma*Hk; 
+        //generate noise field
+        V(mx,gnd) <+ white_noise(sqrt(2*alpha*`P_K*T/(gamma*Ms)),"thermal");
+        V(my,gnd) <+ white_noise(sqrt(2*alpha*`P_K*T/(gamma*Ms)),"thermal");
+        V(mz,gnd) <+ white_noise(sqrt(2*alpha*`P_K*T/(gamma*Ms)),"thermal");
+        //OPAMP
+        //V(mx,gnd):V(inx,gnd)==0;
+        //V(my,gnd):V(iny,gnd)==0;
+        //V(mz,gnd):V(inz,gnd)==0;
+        //Capacitor  
+        I(mx,gnd) <+ ddt(tdl*V(mx,gnd));
+        I(my,gnd) <+ ddt(tdl*V(my,gnd));
+        I(mz,gnd) <+ ddt(tdl*V(mz,gnd));
+        //Internal
+        hintx = Kx*V(mx);
+        hinty = Kx*V(my);
+        hintz = Ky*V(mz);
+        dummy = g_int_mx(intmx,intmy,intmz,V(mx),V(my),V(mz),hintx,hinty,hintz);
+        dummy = g_int_mxmx(intmmx,intmmy,intmmz,V(mx),V(my),V(mz),hintx,hinty,hintz,alpha);
+        I(mx,gnd) <+ intmx + intmmx;
+        I(my,gnd) <+ intmy + intmmy;
+        I(mz,gnd) <+ intmz + intmmz;
+        //External field
+        dummy = g_ext_mx(extmx,extmy,extmz,V(mx),V(my),V(mz),V(hx),V(hy),V(hz),Hk);
+        dummy = g_ext_mxmx(extmmx,extmmy,extmmz,V(mx),V(my),V(mz),V(hx),V(hy),V(hz),Hk,alpha);
+        I(mx,gnd) <+ extmx + extmmx;
+        I(my,gnd) <+ extmy + extmmy;
+        I(mz,gnd) <+ extmz + extmmz;
+        //Noise field
+        //dummy = g_ext_mx(nmx,nmy,nmz,V(mx),V(my),V(mz),V(hx),V(hy),V(hz),Hk);
+        //I(mx,gnd) <+ nmx;
+        //I(my,gnd) <+ nmy;
+        //I(mz,gnd) <+ nmz;
+        //STT
+        dummy = g_stt_mx(sttmx,sttmy,sttmz,V(mx),V(my),V(mz),V(sx),V(sy),V(sz),kstt,alpha);
+        dummy = g_stt_mxmx(sttmmx,sttmmy,sttmmz,V(mx),V(my),V(mz),V(sx),V(sy),V(sz),kstt);
+        I(mx,gnd) <+ sttmx + sttmmx;
+        I(my,gnd) <+ sttmy + sttmmy;
+        I(mz,gnd) <+ sttmz + sttmmz;
+    end
+ endmodule*/
+`endif

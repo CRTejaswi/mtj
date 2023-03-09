@@ -1,0 +1,61 @@
+/*********** libSpin: Library for Spintronics***************
+ Library module of a generic 3-component voltage source element
+
+ Version 1.0.0alpha
+ 
+ Copyright @ 2014 Samiran Ganguly, Kerem Y. Camsari, Supriyo Datta Group, Purdue University
+ 
+ The terms under which the software and associated documentation (the Software) is provided are as the following:
+ 
+ The Software is provided "as is", without warranty of any kind, express or implied, including but not limited to the warranties of merchantability, fitness for a particular purpose and noninfringement. In no event shall the authors or copyright holders be liable for any claim, damages or other liability, whether in an action of contract, tort or otherwise, arising from, out of or in connection with the Software or the use or other dealings in the Software.
+ 
+ Samiran Ganguly and Kerem Y. Camsari, Supriyo Datta Group, Purdue University grants, free of charge, to any users the right to modify, copy, and redistribute the Software, both within the user's organization and externally, subject to the following restrictions:
+ 
+ 1. The users agree not to charge for the code itself but may charge for additions, extensions, or support.
+ 
+ 2. In any product based on the Software, the users agree to acknowledge the Research Group that developed the software. This acknowledgment shall appear in the product documentation.
+ 
+ 3. The users agree to obey all U.S. Government restrictions governing redistribution or export of the software.
+ 
+ 4. The users agree to reproduce any copyright notice which appears on the software on any copy or modification of such made available to others.
+ 
+ Agreed to by 
+ Samiran Ganguly
+ Kerem Y. Camsari
+ September 2014
+*************************************************************/
+/************************************************************
+ 
+ A 3-component source. Use it to generate magnetic field, magnetization directions etc in a model
+ Can be used to model a spin pump as well
+ 
+*************************************************************/ 
+`ifdef LIBSPINVSRC_VAMS
+`else
+`define LIBSPINVSRC_VAMS 1
+
+module ls_vsrc(px,py,pz,nx,ny,nz);
+
+    inout px,py,pz,nx,ny,nz;
+    electrical px,py,pz,nx,ny,nz;
+    
+    //voltages
+    parameter real vx=1.0;
+    parameter real vy=1.0;
+    parameter real vz=1.0;
+    //source resistance - for generality
+    parameter real rx=0.0;
+    parameter real ry=0.0;
+    parameter real rz=0.0;
+
+    analog begin
+
+        V(px,nx) <+ vx - I(px,nx)*rx;
+        V(py,ny) <+ vy - I(py,ny)*ry;
+        V(pz,nz) <+ vz - I(pz,nz)*rz;
+
+    end
+
+endmodule
+
+`endif
